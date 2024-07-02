@@ -71,41 +71,50 @@ namespace Company.Function
     //     }
     // }
  public class GetResumeCounter
+{
+    private readonly ILogger<GetResumeCounter> _logger;
+
+    public GetResumeCounter(ILogger<GetResumeCounter> logger)
     {
-
-        private readonly ILogger<GetResumeCounter> _logger;
-
-        public GetResumeCounter(ILogger<GetResumeCounter> logger)
-        {
-            _logger = logger;
-        }
-
-        [Function("GetResumeCounter")]
-        public  async Task<HttpResponseMessage> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req,
-            Counter counter) // Change parameter type back to Counter
-            // ILogger logger)
-        {
-            _logger.LogInformation("C# HTTP trigger function processed a request.");
-
-            counter.Count += 1; // Update the counter directly
-
-            CosmosClient client = new CosmosClient("AzureResumeConnectionString"); // Replace with your connection string
-            Container container = client.GetContainer("AzureResume", "Counter");
-
-            // Update Cosmos DB using Cosmos SDK (consider error handling)
-            await container.ReplaceItemAsync(counter, counter.Id); // No partition key needed here (modify if needed)
-
-            var jsonToReturn = JsonConvert.SerializeObject(counter);
-
-            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            {
-                Content = new StringContent(jsonToReturn, Encoding.UTF8, "application/json")
-            };
-        }
+        _logger = logger;
     }
 
-  
+    [Function("GetResumeCounter")]
+    public async Task<HttpResponseMessage> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequest req,
+        Counter counter // Assuming Counter class has Id property
+        )
+    {
+        _logger.LogInformation("C# HTTP trigger function processed a request.");
+
+        // Check if counter is null (optional but good practice)
+        if (counter == null)
+        {
+            _logger.LogError("Counter object is null. Returning error message.");
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = new StringContent("Error: Could not retrieve counter.")
+            };
+        }
+
+        counter.Count += 1; // Update the counter directly
+
+        CosmosClient client = new CosmosClient("AzureResumeConnectionString"); // Replace with your connection string
+        Container container = client.GetContainer("AzureResume", "Counter");
+
+        // Update Cosmos DB using Cosmos SDK (consider error handling)
+        await container.ReplaceItemAsync(counter, counter.Id); // No partition key needed here (modify if needed)
+
+        var jsonToReturn = JsonConvert.SerializeObject(counter);
+
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(jsonToReturn, Encoding.UTF8, "application/json")
+        };
+    }
+  }
+
+
 }
 
 
